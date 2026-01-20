@@ -8,4 +8,5 @@ import { askWorkflowQuestions } from './workflow.js';
 import type { UserAnswers } from '../types/index.js';
 export declare function askAllQuestions(): Promise<UserAnswers>;
 export { askProjectQuestions, askFrontendQuestions, askBackendQuestions, askTestingQuestions, askSecurityQuestions, askDevOpsQuestions, askWorkflowQuestions, };
+export { askSetupQuestions, cleanExistingClaudeFiles } from './setup.js';
 //# sourceMappingURL=index.d.ts.map

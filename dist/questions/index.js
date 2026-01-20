@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.askWorkflowQuestions = exports.askDevOpsQuestions = exports.askSecurityQuestions = exports.askTestingQuestions = exports.askBackendQuestions = exports.askFrontendQuestions = exports.askProjectQuestions = void 0;
+exports.cleanExistingClaudeFiles = exports.askSetupQuestions = exports.askWorkflowQuestions = exports.askDevOpsQuestions = exports.askSecurityQuestions = exports.askTestingQuestions = exports.askBackendQuestions = exports.askFrontendQuestions = exports.askProjectQuestions = void 0;
 exports.askAllQuestions = askAllQuestions;
 const project_js_1 = require("./project.js");
 Object.defineProperty(exports, "askProjectQuestions", { enumerable: true, get: function () { return project_js_1.askProjectQuestions; } });
@@ -66,4 +66,7 @@ async function askAllQuestions() {
         ...workflowAnswers,
     };
 }
+var setup_js_1 = require("./setup.js");
+Object.defineProperty(exports, "askSetupQuestions", { enumerable: true, get: function () { return setup_js_1.askSetupQuestions; } });
+Object.defineProperty(exports, "cleanExistingClaudeFiles", { enumerable: true, get: function () { return setup_js_1.cleanExistingClaudeFiles; } });
 //# sourceMappingURL=index.js.map

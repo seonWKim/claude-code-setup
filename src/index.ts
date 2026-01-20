@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { askAllQuestions } from './questions/index.js';
+import { askSetupQuestions, cleanExistingClaudeFiles } from './questions/setup.js';
 import { mapAnswersToComponents } from './mapping/index.js';
 import { generateConfiguration } from './generator/index.js';
 import logger from './utils/logger.js';
@@ -16,10 +17,9 @@ async function main(): Promise<void> {
     .name('claude-code-setup')
     .description('Configure Claude Code for any project')
     .version(VERSION)
-    .option('-d, --directory <path>', 'Target directory', process.cwd())
-    .action(async (options) => {
+    .action(async () => {
       try {
-        await runSetup(options.directory);
+        await runSetup();
       } catch (error) {
         if (error instanceof Error) {
           logger.error(error.message);
@@ -33,13 +33,28 @@ async function main(): Promise<void> {
   await program.parseAsync();
 }
 
-async function runSetup(targetDir: string): Promise<void> {
+async function runSetup(): Promise<void> {
   // Display banner
   logger.newline();
   logger.box([
     'Claude Code Setup',
     'Configure Claude Code for your project',
   ]);
+
+  // Ask setup questions (directory mode, existing files handling)
+  logger.newline();
+  logger.title('Setup');
+  logger.newline();
+
+  const setupAnswers = await askSetupQuestions();
+  const targetDir = setupAnswers.targetDirectory;
+
+  // Clean existing files if user chose 'clean' mode
+  if (setupAnswers.existingFilesAction === 'clean') {
+    logger.info('Removing existing Claude files...');
+    await cleanExistingClaudeFiles(targetDir);
+    logger.success('Existing files removed');
+  }
 
   // Ask questions
   const answers = await askAllQuestions();
@@ -91,12 +106,16 @@ async function runSetup(targetDir: string): Promise<void> {
   }
 
   // Generate configuration
-  await generateConfiguration(targetDir, answers, components);
+  await generateConfiguration(targetDir, answers, components, {
+    existingFilesAction: setupAnswers.existingFilesAction,
+  });
 
   // Display success message
-  logger.newline();
-  logger.box([
+  const isNewDir = setupAnswers.directoryMode === 'new';
+  const successMessage = [
     'Setup Complete!',
+    '',
+    `Target directory: ${targetDir}`,
     '',
     'Files created:',
     '  .claude/',
@@ -105,10 +124,21 @@ async function runSetup(targetDir: string): Promise<void> {
     '  CLAUDE_SETUP.md',
     '',
     'Next steps:',
-    '  1. Review CLAUDE_SETUP.md',
-    '  2. Add API keys to .claude.json',
-    '  3. Start using your configured commands',
-  ]);
+  ];
+
+  if (isNewDir) {
+    successMessage.push(`  1. cd ${setupAnswers.targetDirectory.split('/').pop()}`);
+    successMessage.push('  2. Review CLAUDE_SETUP.md');
+    successMessage.push('  3. Add API keys to .claude.json');
+    successMessage.push('  4. Start using your configured commands');
+  } else {
+    successMessage.push('  1. Review CLAUDE_SETUP.md');
+    successMessage.push('  2. Add API keys to .claude.json');
+    successMessage.push('  3. Start using your configured commands');
+  }
+
+  logger.newline();
+  logger.box(successMessage);
   logger.newline();
 }
 

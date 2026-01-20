@@ -1,3 +1,10 @@
+export type DirectoryMode = 'new' | 'existing';
+export type ExistingFilesAction = 'upsert' | 'clean';
+export interface SetupAnswers {
+    directoryMode: DirectoryMode;
+    targetDirectory: string;
+    existingFilesAction?: ExistingFilesAction;
+}
 export type ProjectType = 'fullstack' | 'frontend' | 'backend' | 'mobile' | 'library' | 'monorepo';
 export type ProjectGoal = 'mvp' | 'production' | 'learning' | 'enterprise';
 export type FrontendFramework = 'react' | 'vue' | 'svelte' | 'angular' | 'vanilla' | 'none';

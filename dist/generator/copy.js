@@ -78,27 +78,67 @@ async function copySelectedFiles(sourceDir, targetDir, components) {
         spinner_js_1.default.succeed(`Copied ${components.rules.length} rules`);
     }
 }
-async function writeClaudeJson(targetDir, components) {
-    spinner_js_1.default.start('Generating .claude.json...');
-    const mcpServers = {};
+async function writeClaudeJson(targetDir, components, upsertMode = false) {
+    const claudeJsonPath = path_1.default.join(targetDir, '.claude.json');
+    if (upsertMode) {
+        spinner_js_1.default.start('Merging .claude.json...');
+    }
+    else {
+        spinner_js_1.default.start('Generating .claude.json...');
+    }
+    let existingConfig = {};
+    // Read existing config if in upsert mode
+    if (upsertMode && await fs_extra_1.default.pathExists(claudeJsonPath)) {
+        try {
+            existingConfig = await fs_extra_1.default.readJson(claudeJsonPath);
+        }
+        catch {
+            // If file is corrupted, start fresh
+            existingConfig = {};
+        }
+    }
+    const mcpServers = {
+        ...(existingConfig.mcpServers || {}),
+    };
     for (const server of components.mcpServers) {
         mcpServers[server.name] = server.config;
     }
     const claudeJson = {
+        ...existingConfig,
         mcpServers,
     };
-    await fs_extra_1.default.writeJson(path_1.default.join(targetDir, '.claude.json'), claudeJson, {
+    await fs_extra_1.default.writeJson(claudeJsonPath, claudeJson, {
         spaces: 2,
     });
-    spinner_js_1.default.succeed('Generated .claude.json');
+    if (upsertMode) {
+        spinner_js_1.default.succeed('Merged .claude.json');
+    }
+    else {
+        spinner_js_1.default.succeed('Generated .claude.json');
+    }
 }
-async function writeSettingsLocal(targetDir, components, enableHooks) {
+async function writeSettingsLocal(targetDir, components, enableHooks, upsertMode = false) {
     if (!enableHooks || components.hooks.length === 0) {
         return;
     }
-    spinner_js_1.default.start('Generating settings.local.json...');
     const claudeDir = path_1.default.join(targetDir, '.claude');
+    const settingsPath = path_1.default.join(claudeDir, 'settings.local.json');
+    if (upsertMode) {
+        spinner_js_1.default.start('Merging settings.local.json...');
+    }
+    else {
+        spinner_js_1.default.start('Generating settings.local.json...');
+    }
     await fs_extra_1.default.ensureDir(claudeDir);
+    let existingConfig = {};
+    if (upsertMode && await fs_extra_1.default.pathExists(settingsPath)) {
+        try {
+            existingConfig = await fs_extra_1.default.readJson(settingsPath);
+        }
+        catch {
+            existingConfig = {};
+        }
+    }
     // Build hooks config
     const preToolUse = [];
     const postToolUse = [];
@@ -156,15 +196,26 @@ echo "$input"`,
         ],
         description: 'Log PR URL after PR creation',
     });
+    // Merge with existing hooks if in upsert mode
+    const existingHooks = existingConfig.hooks || {};
+    const mergedPreToolUse = [...(existingHooks.PreToolUse || []), ...preToolUse];
+    const mergedPostToolUse = [...(existingHooks.PostToolUse || []), ...postToolUse];
+    const mergedStop = [...(existingHooks.Stop || []), ...stop];
     const settingsLocal = {
+        ...existingConfig,
         $schema: 'https://json.schemastore.org/claude-code-settings.json',
         hooks: {
-            PreToolUse: preToolUse,
-            PostToolUse: postToolUse,
-            Stop: stop.length > 0 ? stop : undefined,
+            PreToolUse: mergedPreToolUse.length > 0 ? mergedPreToolUse : undefined,
+            PostToolUse: mergedPostToolUse.length > 0 ? mergedPostToolUse : undefined,
+            Stop: mergedStop.length > 0 ? mergedStop : undefined,
         },
     };
-    await fs_extra_1.default.writeJson(path_1.default.join(claudeDir, 'settings.local.json'), settingsLocal, { spaces: 2 });
-    spinner_js_1.default.succeed('Generated settings.local.json');
+    await fs_extra_1.default.writeJson(settingsPath, settingsLocal, { spaces: 2 });
+    if (upsertMode) {
+        spinner_js_1.default.succeed('Merged settings.local.json');
+    }
+    else {
+        spinner_js_1.default.succeed('Generated settings.local.json');
+    }
 }
 //# sourceMappingURL=copy.js.map

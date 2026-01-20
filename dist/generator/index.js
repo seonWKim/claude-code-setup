@@ -17,19 +17,23 @@ Object.defineProperty(exports, "generateClaudeMd", { enumerable: true, get: func
 const setup_md_js_1 = require("./setup-md.js");
 Object.defineProperty(exports, "generateSetupMd", { enumerable: true, get: function () { return setup_md_js_1.generateSetupMd; } });
 const logger_js_1 = __importDefault(require("../utils/logger.js"));
-async function generateConfiguration(targetDir, answers, components) {
+async function generateConfiguration(targetDir, answers, components, options = {}) {
     let sourceDir = null;
+    const upsertMode = options.existingFilesAction === 'upsert';
     try {
         logger_js_1.default.newline();
         logger_js_1.default.title('Generating Configuration...');
+        if (upsertMode) {
+            logger_js_1.default.info('Mode: Merging with existing files');
+        }
         logger_js_1.default.newline();
         // Clone the source repository
         sourceDir = await (0, clone_js_1.cloneSourceRepo)();
         // Copy selected files
         await (0, copy_js_1.copySelectedFiles)(sourceDir, targetDir, components);
         // Generate configuration files
-        await (0, copy_js_1.writeClaudeJson)(targetDir, components);
-        await (0, copy_js_1.writeSettingsLocal)(targetDir, components, answers.enableHooks);
+        await (0, copy_js_1.writeClaudeJson)(targetDir, components, upsertMode);
+        await (0, copy_js_1.writeSettingsLocal)(targetDir, components, answers.enableHooks, upsertMode);
         // Generate documentation
         await (0, claude_md_js_1.generateClaudeMd)(targetDir, answers, components);
         await (0, setup_md_js_1.generateSetupMd)(targetDir, answers, components);

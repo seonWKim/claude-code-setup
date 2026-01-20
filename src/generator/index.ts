@@ -6,19 +6,28 @@ import {
 } from './copy.js';
 import { generateClaudeMd } from './claude-md.js';
 import { generateSetupMd } from './setup-md.js';
-import type { UserAnswers, SelectedComponents } from '../types/index.js';
+import type { UserAnswers, SelectedComponents, ExistingFilesAction } from '../types/index.js';
 import logger from '../utils/logger.js';
+
+export interface GenerateOptions {
+  existingFilesAction?: ExistingFilesAction;
+}
 
 export async function generateConfiguration(
   targetDir: string,
   answers: UserAnswers,
-  components: SelectedComponents
+  components: SelectedComponents,
+  options: GenerateOptions = {}
 ): Promise<void> {
   let sourceDir: string | null = null;
+  const upsertMode = options.existingFilesAction === 'upsert';
 
   try {
     logger.newline();
     logger.title('Generating Configuration...');
+    if (upsertMode) {
+      logger.info('Mode: Merging with existing files');
+    }
     logger.newline();
 
     // Clone the source repository
@@ -28,8 +37,8 @@ export async function generateConfiguration(
     await copySelectedFiles(sourceDir, targetDir, components);
 
     // Generate configuration files
-    await writeClaudeJson(targetDir, components);
-    await writeSettingsLocal(targetDir, components, answers.enableHooks);
+    await writeClaudeJson(targetDir, components, upsertMode);
+    await writeSettingsLocal(targetDir, components, answers.enableHooks, upsertMode);
 
     // Generate documentation
     await generateClaudeMd(targetDir, answers, components);

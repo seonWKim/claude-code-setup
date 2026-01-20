@@ -1,3 +1,13 @@
+// Setup Types
+export type DirectoryMode = 'new' | 'existing';
+export type ExistingFilesAction = 'upsert' | 'clean';
+
+export interface SetupAnswers {
+  directoryMode: DirectoryMode;
+  targetDirectory: string;
+  existingFilesAction?: ExistingFilesAction;
+}
+
 // Project Types
 export type ProjectType =
   | 'fullstack'

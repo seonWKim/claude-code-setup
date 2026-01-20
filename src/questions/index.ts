@@ -85,3 +85,5 @@ export {
   askDevOpsQuestions,
   askWorkflowQuestions,
 };
+
+export { askSetupQuestions, cleanExistingClaudeFiles } from './setup.js';

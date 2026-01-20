@@ -91,40 +91,93 @@ export async function copySelectedFiles(
 
 export async function writeClaudeJson(
   targetDir: string,
-  components: SelectedComponents
+  components: SelectedComponents,
+  upsertMode: boolean = false
 ): Promise<void> {
-  spinner.start('Generating .claude.json...');
+  const claudeJsonPath = path.join(targetDir, '.claude.json');
 
-  const mcpServers: Record<string, unknown> = {};
+  if (upsertMode) {
+    spinner.start('Merging .claude.json...');
+  } else {
+    spinner.start('Generating .claude.json...');
+  }
+
+  let existingConfig: { mcpServers?: Record<string, unknown> } = {};
+
+  // Read existing config if in upsert mode
+  if (upsertMode && await fs.pathExists(claudeJsonPath)) {
+    try {
+      existingConfig = await fs.readJson(claudeJsonPath);
+    } catch {
+      // If file is corrupted, start fresh
+      existingConfig = {};
+    }
+  }
+
+  const mcpServers: Record<string, unknown> = {
+    ...(existingConfig.mcpServers || {}),
+  };
 
   for (const server of components.mcpServers) {
     mcpServers[server.name] = server.config;
   }
 
   const claudeJson = {
+    ...existingConfig,
     mcpServers,
   };
 
-  await fs.writeJson(path.join(targetDir, '.claude.json'), claudeJson, {
+  await fs.writeJson(claudeJsonPath, claudeJson, {
     spaces: 2,
   });
 
-  spinner.succeed('Generated .claude.json');
+  if (upsertMode) {
+    spinner.succeed('Merged .claude.json');
+  } else {
+    spinner.succeed('Generated .claude.json');
+  }
 }
 
 export async function writeSettingsLocal(
   targetDir: string,
   components: SelectedComponents,
-  enableHooks: boolean
+  enableHooks: boolean,
+  upsertMode: boolean = false
 ): Promise<void> {
   if (!enableHooks || components.hooks.length === 0) {
     return;
   }
 
-  spinner.start('Generating settings.local.json...');
-
   const claudeDir = path.join(targetDir, '.claude');
+  const settingsPath = path.join(claudeDir, 'settings.local.json');
+
+  if (upsertMode) {
+    spinner.start('Merging settings.local.json...');
+  } else {
+    spinner.start('Generating settings.local.json...');
+  }
+
   await fs.ensureDir(claudeDir);
+
+  // Read existing config if in upsert mode
+  interface ExistingSettings {
+    $schema?: string;
+    hooks?: {
+      PreToolUse?: unknown[];
+      PostToolUse?: unknown[];
+      Stop?: unknown[];
+    };
+    [key: string]: unknown;
+  }
+
+  let existingConfig: ExistingSettings = {};
+  if (upsertMode && await fs.pathExists(settingsPath)) {
+    try {
+      existingConfig = await fs.readJson(settingsPath);
+    } catch {
+      existingConfig = {};
+    }
+  }
 
   // Build hooks config
   const preToolUse: unknown[] = [];
@@ -189,20 +242,27 @@ echo "$input"`,
     description: 'Log PR URL after PR creation',
   });
 
+  // Merge with existing hooks if in upsert mode
+  const existingHooks = existingConfig.hooks || {};
+  const mergedPreToolUse = [...(existingHooks.PreToolUse || []), ...preToolUse];
+  const mergedPostToolUse = [...(existingHooks.PostToolUse || []), ...postToolUse];
+  const mergedStop = [...(existingHooks.Stop || []), ...stop];
+
   const settingsLocal = {
+    ...existingConfig,
     $schema: 'https://json.schemastore.org/claude-code-settings.json',
     hooks: {
-      PreToolUse: preToolUse,
-      PostToolUse: postToolUse,
-      Stop: stop.length > 0 ? stop : undefined,
+      PreToolUse: mergedPreToolUse.length > 0 ? mergedPreToolUse : undefined,
+      PostToolUse: mergedPostToolUse.length > 0 ? mergedPostToolUse : undefined,
+      Stop: mergedStop.length > 0 ? mergedStop : undefined,
     },
   };
 
-  await fs.writeJson(
-    path.join(claudeDir, 'settings.local.json'),
-    settingsLocal,
-    { spaces: 2 }
-  );
+  await fs.writeJson(settingsPath, settingsLocal, { spaces: 2 });
 
-  spinner.succeed('Generated settings.local.json');
+  if (upsertMode) {
+    spinner.succeed('Merged settings.local.json');
+  } else {
+    spinner.succeed('Generated settings.local.json');
+  }
 }
