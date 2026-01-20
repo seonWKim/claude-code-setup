@@ -5,5 +5,5 @@ export interface TestingAnswers {
     e2eFramework: E2EFramework;
     coverageTarget: CoverageTarget;
 }
-export declare function askTestingQuestions(backendLanguage: BackendLanguage, projectGoal: ProjectGoal, hasFrontend: boolean): Promise<TestingAnswers>;
+export declare function askTestingQuestions(backendLanguage: BackendLanguage, projectGoal: ProjectGoal, hasFrontend: boolean, isFirstSection?: boolean): Promise<TestingAnswers>;
 //# sourceMappingURL=testing.d.ts.map

@@ -5,5 +5,5 @@ export interface WorkflowAnswers {
     requireCodeReview: boolean;
     enableHooks: boolean;
 }
-export declare function askWorkflowQuestions(projectGoal: ProjectGoal): Promise<WorkflowAnswers>;
+export declare function askWorkflowQuestions(projectGoal: ProjectGoal, isFirstSection?: boolean): Promise<WorkflowAnswers>;
 //# sourceMappingURL=workflow.d.ts.map

@@ -5,5 +5,5 @@ export interface SecurityAnswers {
     hasPayments: boolean;
     hasBlockchain: boolean;
 }
-export declare function askSecurityQuestions(projectGoal: ProjectGoal, databaseClient: DatabaseClient): Promise<SecurityAnswers>;
+export declare function askSecurityQuestions(projectGoal: ProjectGoal, databaseClient: DatabaseClient, isFirstSection?: boolean): Promise<SecurityAnswers>;
 //# sourceMappingURL=security.d.ts.map

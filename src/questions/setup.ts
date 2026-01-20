@@ -1,6 +1,7 @@
 import inquirer from 'inquirer';
 import path from 'path';
 import fs from 'fs-extra';
+import { askWithGoBack, GoBackError, GO_BACK_CHOICE } from '../utils/wizard.js';
 
 export type DirectoryMode = 'new' | 'existing';
 export type ExistingFilesAction = 'upsert' | 'clean';
@@ -48,86 +49,122 @@ export function getExistingFilesList(files: ExistingClaudeFiles): string[] {
 }
 
 export async function askSetupQuestions(): Promise<SetupAnswers> {
-  const { directoryMode } = await inquirer.prompt<{ directoryMode: DirectoryMode }>([
-    {
-      type: 'list',
-      name: 'directoryMode',
-      message: 'Where would you like to set up Claude Code?',
-      choices: [
-        { name: 'Use current directory', value: 'existing' },
-        { name: 'Create a new project directory', value: 'new' },
-      ],
-    },
-  ]);
+  const questionKeys = ['directoryMode', 'newDirName', 'existingFilesAction'];
+  let currentIndex = 0;
+  const answers: {
+    directoryMode?: DirectoryMode;
+    newDirName?: string;
+    existingFilesAction?: ExistingFilesAction;
+  } = {};
 
-  let targetDirectory: string;
+  while (currentIndex < questionKeys.length) {
+    const questionKey = questionKeys[currentIndex];
+    const isFirst = currentIndex === 0;
 
-  if (directoryMode === 'new') {
-    const { newDirName } = await inquirer.prompt<{ newDirName: string }>([
-      {
-        type: 'input',
-        name: 'newDirName',
-        message: 'Enter the name for the new directory:',
-        validate: (input: string) => {
-          if (!input.trim()) {
-            return 'Directory name is required';
+    try {
+      switch (questionKey) {
+        case 'directoryMode': {
+          answers.directoryMode = await askWithGoBack<DirectoryMode>({
+            type: 'list',
+            name: 'directoryMode',
+            message: 'Where would you like to set up Claude Code?',
+            choices: [
+              { name: 'Use current directory', value: 'existing' },
+              { name: 'Create a new project directory', value: 'new' },
+            ],
+          }, isFirst);
+          break;
+        }
+
+        case 'newDirName': {
+          // Skip if not creating new directory
+          if (answers.directoryMode !== 'new') {
+            currentIndex++;
+            continue;
           }
-          if (!/^[a-zA-Z0-9-_]+$/.test(input)) {
-            return 'Directory name can only contain letters, numbers, hyphens, and underscores';
-          }
-          const fullPath = path.join(process.cwd(), input);
-          if (fs.existsSync(fullPath)) {
-            return `Directory "${input}" already exists`;
-          }
-          return true;
-        },
-      },
-    ]);
 
-    targetDirectory = path.join(process.cwd(), newDirName);
-    await fs.ensureDir(targetDirectory);
+          answers.newDirName = await askWithGoBack<string>({
+            type: 'input',
+            name: 'newDirName',
+            message: 'Enter the name for the new directory:',
+            validate: (input: string) => {
+              if (input.toLowerCase() === 'back') return true;
+              if (!input.trim()) {
+                return 'Directory name is required';
+              }
+              if (!/^[a-zA-Z0-9-_]+$/.test(input)) {
+                return 'Directory name can only contain letters, numbers, hyphens, and underscores';
+              }
+              const fullPath = path.join(process.cwd(), input);
+              if (fs.existsSync(fullPath)) {
+                return `Directory "${input}" already exists`;
+              }
+              return true;
+            },
+          }, false);
+          break;
+        }
 
-    return {
-      directoryMode,
-      targetDirectory,
-    };
+        case 'existingFilesAction': {
+          // Skip if creating new directory
+          if (answers.directoryMode === 'new') {
+            currentIndex++;
+            continue;
+          }
+
+          const existingFiles = checkExistingClaudeFiles(process.cwd());
+          if (!hasAnyClaudeFiles(existingFiles)) {
+            currentIndex++;
+            continue;
+          }
+
+          const filesList = getExistingFilesList(existingFiles);
+          answers.existingFilesAction = await askWithGoBack<ExistingFilesAction>({
+            type: 'list',
+            name: 'existingFilesAction',
+            message: `Found existing Claude files: ${filesList.join(', ')}\nHow would you like to proceed?`,
+            choices: [
+              { name: 'Merge with existing files (upsert)', value: 'upsert' },
+              { name: 'Remove existing and create fresh', value: 'clean' },
+            ],
+          }, false);
+          break;
+        }
+      }
+
+      currentIndex++;
+    } catch (error) {
+      if (error instanceof GoBackError) {
+        if (currentIndex > 0) {
+          currentIndex--;
+          // Handle skipped questions when going back
+          if (questionKeys[currentIndex] === 'newDirName' && answers.directoryMode !== 'new') {
+            currentIndex--;
+          }
+          if (questionKeys[currentIndex] === 'existingFilesAction' && answers.directoryMode === 'new') {
+            currentIndex--;
+          }
+        }
+        // If at first question, just restart it
+      } else {
+        throw error;
+      }
+    }
   }
 
-  // Existing directory mode
-  targetDirectory = process.cwd();
-  const existingFiles = checkExistingClaudeFiles(targetDirectory);
-
-  if (hasAnyClaudeFiles(existingFiles)) {
-    const filesList = getExistingFilesList(existingFiles);
-
-    const { existingFilesAction } = await inquirer.prompt<{ existingFilesAction: ExistingFilesAction }>([
-      {
-        type: 'list',
-        name: 'existingFilesAction',
-        message: `Found existing Claude files: ${filesList.join(', ')}\nHow would you like to proceed?`,
-        choices: [
-          {
-            name: 'Merge with existing files (upsert)',
-            value: 'upsert'
-          },
-          {
-            name: 'Remove existing and create fresh',
-            value: 'clean'
-          },
-        ],
-      },
-    ]);
-
-    return {
-      directoryMode,
-      targetDirectory,
-      existingFilesAction,
-    };
+  // Build the result
+  let targetDirectory: string;
+  if (answers.directoryMode === 'new' && answers.newDirName) {
+    targetDirectory = path.join(process.cwd(), answers.newDirName);
+    await fs.ensureDir(targetDirectory);
+  } else {
+    targetDirectory = process.cwd();
   }
 
   return {
-    directoryMode,
+    directoryMode: answers.directoryMode!,
     targetDirectory,
+    existingFilesAction: answers.existingFilesAction,
   };
 }
 

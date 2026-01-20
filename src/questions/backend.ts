@@ -6,6 +6,7 @@ import type {
   DatabaseClient,
   ProjectType,
 } from '../types/index.js';
+import { askWithGoBack, GoBackError, GO_BACK_CHOICE } from '../utils/wizard.js';
 
 export interface BackendAnswers {
   hasBackend: boolean;
@@ -16,7 +17,8 @@ export interface BackendAnswers {
 }
 
 export async function askBackendQuestions(
-  projectType: ProjectType
+  projectType: ProjectType,
+  isFirstSection: boolean = false
 ): Promise<BackendAnswers> {
   // Skip backend questions for frontend-only projects
   if (projectType === 'frontend') {
@@ -29,96 +31,118 @@ export async function askBackendQuestions(
     };
   }
 
-  const { hasBackend } = await inquirer.prompt<{ hasBackend: boolean }>([
-    {
-      type: 'confirm',
-      name: 'hasBackend',
-      message: 'Does your project have a backend/API?',
-      default: true,
-    },
-  ]);
+  const questionKeys = ['hasBackend', 'backendLanguage', 'backendFramework', 'database', 'databaseClient'];
+  let currentIndex = 0;
+  const answers: Partial<BackendAnswers> = {};
 
-  if (!hasBackend) {
-    return {
-      hasBackend: false,
-      backendLanguage: 'none',
-      backendFramework: 'none',
-      database: 'none',
-      databaseClient: 'none',
-    };
+  while (currentIndex < questionKeys.length) {
+    const isFirst = isFirstSection && currentIndex === 0;
+    const questionKey = questionKeys[currentIndex];
+
+    try {
+      switch (questionKey) {
+        case 'hasBackend': {
+          const hasBackendChoices = [
+            { name: 'Yes', value: true },
+            { name: 'No', value: false },
+            ...(!isFirst ? [new inquirer.Separator(), GO_BACK_CHOICE] : []),
+          ];
+          const hasBackend = await askWithGoBack<boolean>({
+            type: 'list',
+            name: 'hasBackend',
+            message: 'Does your project have a backend/API?',
+            choices: hasBackendChoices,
+          }, true);
+
+          if (!hasBackend) {
+            return {
+              hasBackend: false,
+              backendLanguage: 'none',
+              backendFramework: 'none',
+              database: 'none',
+              databaseClient: 'none',
+            };
+          }
+          answers.hasBackend = true;
+          break;
+        }
+
+        case 'backendLanguage': {
+          answers.backendLanguage = await askWithGoBack<BackendLanguage>({
+            type: 'list',
+            name: 'backendLanguage',
+            message: 'What is your primary backend language?',
+            choices: [
+              { name: 'TypeScript/JavaScript (Node.js)', value: 'typescript' },
+              { name: 'Go', value: 'go' },
+              { name: 'Rust', value: 'rust' },
+              { name: 'Java/Kotlin', value: 'java' },
+              { name: 'Python', value: 'python' },
+            ],
+          }, false);
+          break;
+        }
+
+        case 'backendFramework': {
+          answers.backendFramework = await askWithGoBack<BackendFramework>({
+            type: 'list',
+            name: 'backendFramework',
+            message: 'Which backend framework are you using?',
+            choices: getFrameworkChoices(answers.backendLanguage!),
+          }, false);
+          break;
+        }
+
+        case 'database': {
+          answers.database = await askWithGoBack<Database>({
+            type: 'list',
+            name: 'database',
+            message: 'What database are you using?',
+            choices: [
+              { name: 'PostgreSQL', value: 'postgresql' },
+              { name: 'MySQL', value: 'mysql' },
+              { name: 'MongoDB', value: 'mongodb' },
+              { name: 'SQLite', value: 'sqlite' },
+              { name: 'None / Not decided yet', value: 'none' },
+            ],
+          }, false);
+          break;
+        }
+
+        case 'databaseClient': {
+          if (answers.database === 'none') {
+            answers.databaseClient = 'none';
+          } else {
+            answers.databaseClient = await askWithGoBack<DatabaseClient>({
+              type: 'list',
+              name: 'databaseClient',
+              message: 'What database client/ORM are you using?',
+              choices: getDatabaseClientChoices(answers.backendLanguage!, answers.database!),
+            }, false);
+          }
+          break;
+        }
+      }
+
+      currentIndex++;
+    } catch (error) {
+      if (error instanceof GoBackError) {
+        if (currentIndex > 0) {
+          currentIndex--;
+          // Skip databaseClient if database is none when going back
+          if (questionKeys[currentIndex] === 'databaseClient' && answers.database === 'none') {
+            currentIndex--;
+          }
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
-  const { backendLanguage } = await inquirer.prompt<{
-    backendLanguage: BackendLanguage;
-  }>([
-    {
-      type: 'list',
-      name: 'backendLanguage',
-      message: 'What is your primary backend language?',
-      choices: [
-        { name: 'TypeScript/JavaScript (Node.js)', value: 'typescript' },
-        { name: 'Go', value: 'go' },
-        { name: 'Rust', value: 'rust' },
-        { name: 'Java/Kotlin', value: 'java' },
-        { name: 'Python', value: 'python' },
-      ],
-    },
-  ]);
-
-  const frameworkChoices = getFrameworkChoices(backendLanguage);
-
-  const { backendFramework } = await inquirer.prompt<{
-    backendFramework: BackendFramework;
-  }>([
-    {
-      type: 'list',
-      name: 'backendFramework',
-      message: 'Which backend framework are you using?',
-      choices: frameworkChoices,
-    },
-  ]);
-
-  const { database } = await inquirer.prompt<{ database: Database }>([
-    {
-      type: 'list',
-      name: 'database',
-      message: 'What database are you using?',
-      choices: [
-        { name: 'PostgreSQL', value: 'postgresql' },
-        { name: 'MySQL', value: 'mysql' },
-        { name: 'MongoDB', value: 'mongodb' },
-        { name: 'SQLite', value: 'sqlite' },
-        { name: 'None / Not decided yet', value: 'none' },
-      ],
-    },
-  ]);
-
-  let databaseClient: DatabaseClient = 'none';
-
-  if (database !== 'none') {
-    const clientChoices = getDatabaseClientChoices(backendLanguage, database);
-
-    const clientAnswer = await inquirer.prompt<{
-      databaseClient: DatabaseClient;
-    }>([
-      {
-        type: 'list',
-        name: 'databaseClient',
-        message: 'What database client/ORM are you using?',
-        choices: clientChoices,
-      },
-    ]);
-
-    databaseClient = clientAnswer.databaseClient;
-  }
-
-  return {
-    hasBackend: true,
-    backendLanguage,
-    backendFramework,
-    database,
-    databaseClient,
-  };
+  return answers as BackendAnswers;
 }
 
 function getFrameworkChoices(

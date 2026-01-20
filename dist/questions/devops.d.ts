@@ -4,5 +4,5 @@ export interface DevOpsAnswers {
     cicdPlatform: CICDPlatform;
     mcpIntegrations: string[];
 }
-export declare function askDevOpsQuestions(databaseClient: DatabaseClient): Promise<DevOpsAnswers>;
+export declare function askDevOpsQuestions(databaseClient: DatabaseClient, isFirstSection?: boolean): Promise<DevOpsAnswers>;
 //# sourceMappingURL=devops.d.ts.map

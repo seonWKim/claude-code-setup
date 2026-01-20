@@ -5,5 +5,5 @@ export interface FrontendAnswers {
     metaFramework: MetaFramework;
     stylingApproach: StylingApproach;
 }
-export declare function askFrontendQuestions(projectType: ProjectType): Promise<FrontendAnswers>;
+export declare function askFrontendQuestions(projectType: ProjectType, isFirstSection?: boolean): Promise<FrontendAnswers>;
 //# sourceMappingURL=frontend.d.ts.map

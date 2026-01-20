@@ -5,70 +5,104 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.askDevOpsQuestions = askDevOpsQuestions;
 const inquirer_1 = __importDefault(require("inquirer"));
-async function askDevOpsQuestions(databaseClient) {
-    const { deploymentPlatform } = await inquirer_1.default.prompt([
-        {
-            type: 'list',
-            name: 'deploymentPlatform',
-            message: 'Where will you deploy your application?',
-            choices: [
-                { name: 'Vercel', value: 'vercel' },
-                { name: 'Railway', value: 'railway' },
-                { name: 'Cloudflare', value: 'cloudflare' },
-                { name: 'AWS', value: 'aws' },
-                { name: 'Docker / Self-hosted', value: 'docker' },
-                { name: 'Not decided yet', value: 'none' },
-            ],
-        },
-    ]);
-    const { cicdPlatform } = await inquirer_1.default.prompt([
-        {
-            type: 'list',
-            name: 'cicdPlatform',
-            message: 'What CI/CD platform will you use?',
-            choices: [
-                { name: 'GitHub Actions', value: 'github-actions' },
-                { name: 'GitLab CI', value: 'gitlab-ci' },
-                { name: 'None / Not needed', value: 'none' },
-            ],
-        },
-    ]);
-    // Build MCP integration choices based on context
-    const mcpChoices = [
-        { name: 'GitHub (PRs, issues, repos)', value: 'github' },
-        { name: 'Context7 (live documentation)', value: 'context7' },
-        { name: 'Sequential Thinking (reasoning)', value: 'sequential-thinking' },
-        { name: 'Memory (persistent memory)', value: 'memory' },
-        { name: 'Firecrawl (web scraping)', value: 'firecrawl' },
-        { name: 'Magic UI (UI components)', value: 'magic' },
-    ];
-    // Add platform-specific MCPs
-    if (databaseClient === 'supabase') {
-        mcpChoices.push({ name: 'Supabase (database ops)', value: 'supabase' });
+const wizard_js_1 = require("../utils/wizard.js");
+async function askDevOpsQuestions(databaseClient, isFirstSection = false) {
+    const questionKeys = ['deploymentPlatform', 'cicdPlatform', 'mcpIntegrations'];
+    let currentIndex = 0;
+    const answers = {};
+    while (currentIndex < questionKeys.length) {
+        const isFirst = isFirstSection && currentIndex === 0;
+        const questionKey = questionKeys[currentIndex];
+        try {
+            switch (questionKey) {
+                case 'deploymentPlatform': {
+                    answers.deploymentPlatform = await (0, wizard_js_1.askWithGoBack)({
+                        type: 'list',
+                        name: 'deploymentPlatform',
+                        message: 'Where will you deploy your application?',
+                        choices: [
+                            { name: 'Vercel', value: 'vercel' },
+                            { name: 'Railway', value: 'railway' },
+                            { name: 'Cloudflare', value: 'cloudflare' },
+                            { name: 'AWS', value: 'aws' },
+                            { name: 'Docker / Self-hosted', value: 'docker' },
+                            { name: 'Not decided yet', value: 'none' },
+                        ],
+                    }, isFirst);
+                    break;
+                }
+                case 'cicdPlatform': {
+                    answers.cicdPlatform = await (0, wizard_js_1.askWithGoBack)({
+                        type: 'list',
+                        name: 'cicdPlatform',
+                        message: 'What CI/CD platform will you use?',
+                        choices: [
+                            { name: 'GitHub Actions', value: 'github-actions' },
+                            { name: 'GitLab CI', value: 'gitlab-ci' },
+                            { name: 'None / Not needed', value: 'none' },
+                        ],
+                    }, false);
+                    break;
+                }
+                case 'mcpIntegrations': {
+                    // Build MCP integration choices based on context
+                    const mcpChoices = [
+                        { name: 'GitHub (PRs, issues, repos)', value: 'github' },
+                        { name: 'Context7 (live documentation)', value: 'context7' },
+                        { name: 'Sequential Thinking (reasoning)', value: 'sequential-thinking' },
+                        { name: 'Memory (persistent memory)', value: 'memory' },
+                        { name: 'Firecrawl (web scraping)', value: 'firecrawl' },
+                        { name: 'Magic UI (UI components)', value: 'magic' },
+                    ];
+                    // Add platform-specific MCPs
+                    if (databaseClient === 'supabase') {
+                        mcpChoices.push({ name: 'Supabase (database ops)', value: 'supabase' });
+                    }
+                    if (answers.deploymentPlatform === 'vercel') {
+                        mcpChoices.push({ name: 'Vercel (deployments)', value: 'vercel' });
+                    }
+                    if (answers.deploymentPlatform === 'railway') {
+                        mcpChoices.push({ name: 'Railway (deployments)', value: 'railway' });
+                    }
+                    if (answers.deploymentPlatform === 'cloudflare') {
+                        mcpChoices.push({ name: 'Cloudflare Docs', value: 'cloudflare-docs' }, { name: 'Cloudflare Workers', value: 'cloudflare-workers-builds' });
+                    }
+                    mcpChoices.push({ name: 'ClickHouse (analytics)', value: 'clickhouse' });
+                    // Add go back as a special checkbox choice
+                    mcpChoices.push(new inquirer_1.default.Separator(), wizard_js_1.GO_BACK_CHOICE);
+                    const result = await inquirer_1.default.prompt([
+                        {
+                            type: 'checkbox',
+                            name: 'mcpIntegrations',
+                            message: 'Which MCP integrations would you like to enable? (space to select, enter to confirm)',
+                            choices: mcpChoices,
+                            default: ['github', 'context7'],
+                        },
+                    ]);
+                    // Check if go back was selected
+                    if (result.mcpIntegrations.includes(wizard_js_1.GO_BACK_VALUE)) {
+                        throw new wizard_js_1.GoBackError();
+                    }
+                    answers.mcpIntegrations = result.mcpIntegrations;
+                    break;
+                }
+            }
+            currentIndex++;
+        }
+        catch (error) {
+            if (error instanceof wizard_js_1.GoBackError) {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                }
+                else {
+                    throw error;
+                }
+            }
+            else {
+                throw error;
+            }
+        }
     }
-    if (deploymentPlatform === 'vercel') {
-        mcpChoices.push({ name: 'Vercel (deployments)', value: 'vercel' });
-    }
-    if (deploymentPlatform === 'railway') {
-        mcpChoices.push({ name: 'Railway (deployments)', value: 'railway' });
-    }
-    if (deploymentPlatform === 'cloudflare') {
-        mcpChoices.push({ name: 'Cloudflare Docs', value: 'cloudflare-docs' }, { name: 'Cloudflare Workers', value: 'cloudflare-workers-builds' });
-    }
-    mcpChoices.push({ name: 'ClickHouse (analytics)', value: 'clickhouse' });
-    const { mcpIntegrations } = await inquirer_1.default.prompt([
-        {
-            type: 'checkbox',
-            name: 'mcpIntegrations',
-            message: 'Which MCP integrations would you like to enable?',
-            choices: mcpChoices,
-            default: ['github', 'context7'],
-        },
-    ]);
-    return {
-        deploymentPlatform,
-        cicdPlatform,
-        mcpIntegrations,
-    };
+    return answers;
 }
 //# sourceMappingURL=devops.js.map

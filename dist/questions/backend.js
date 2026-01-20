@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.askBackendQuestions = askBackendQuestions;
 const inquirer_1 = __importDefault(require("inquirer"));
-async function askBackendQuestions(projectType) {
+const wizard_js_1 = require("../utils/wizard.js");
+async function askBackendQuestions(projectType, isFirstSection = false) {
     // Skip backend questions for frontend-only projects
     if (projectType === 'frontend') {
         return {
@@ -16,80 +17,113 @@ async function askBackendQuestions(projectType) {
             databaseClient: 'none',
         };
     }
-    const { hasBackend } = await inquirer_1.default.prompt([
-        {
-            type: 'confirm',
-            name: 'hasBackend',
-            message: 'Does your project have a backend/API?',
-            default: true,
-        },
-    ]);
-    if (!hasBackend) {
-        return {
-            hasBackend: false,
-            backendLanguage: 'none',
-            backendFramework: 'none',
-            database: 'none',
-            databaseClient: 'none',
-        };
+    const questionKeys = ['hasBackend', 'backendLanguage', 'backendFramework', 'database', 'databaseClient'];
+    let currentIndex = 0;
+    const answers = {};
+    while (currentIndex < questionKeys.length) {
+        const isFirst = isFirstSection && currentIndex === 0;
+        const questionKey = questionKeys[currentIndex];
+        try {
+            switch (questionKey) {
+                case 'hasBackend': {
+                    const hasBackendChoices = [
+                        { name: 'Yes', value: true },
+                        { name: 'No', value: false },
+                        ...(!isFirst ? [new inquirer_1.default.Separator(), wizard_js_1.GO_BACK_CHOICE] : []),
+                    ];
+                    const hasBackend = await (0, wizard_js_1.askWithGoBack)({
+                        type: 'list',
+                        name: 'hasBackend',
+                        message: 'Does your project have a backend/API?',
+                        choices: hasBackendChoices,
+                    }, true);
+                    if (!hasBackend) {
+                        return {
+                            hasBackend: false,
+                            backendLanguage: 'none',
+                            backendFramework: 'none',
+                            database: 'none',
+                            databaseClient: 'none',
+                        };
+                    }
+                    answers.hasBackend = true;
+                    break;
+                }
+                case 'backendLanguage': {
+                    answers.backendLanguage = await (0, wizard_js_1.askWithGoBack)({
+                        type: 'list',
+                        name: 'backendLanguage',
+                        message: 'What is your primary backend language?',
+                        choices: [
+                            { name: 'TypeScript/JavaScript (Node.js)', value: 'typescript' },
+                            { name: 'Go', value: 'go' },
+                            { name: 'Rust', value: 'rust' },
+                            { name: 'Java/Kotlin', value: 'java' },
+                            { name: 'Python', value: 'python' },
+                        ],
+                    }, false);
+                    break;
+                }
+                case 'backendFramework': {
+                    answers.backendFramework = await (0, wizard_js_1.askWithGoBack)({
+                        type: 'list',
+                        name: 'backendFramework',
+                        message: 'Which backend framework are you using?',
+                        choices: getFrameworkChoices(answers.backendLanguage),
+                    }, false);
+                    break;
+                }
+                case 'database': {
+                    answers.database = await (0, wizard_js_1.askWithGoBack)({
+                        type: 'list',
+                        name: 'database',
+                        message: 'What database are you using?',
+                        choices: [
+                            { name: 'PostgreSQL', value: 'postgresql' },
+                            { name: 'MySQL', value: 'mysql' },
+                            { name: 'MongoDB', value: 'mongodb' },
+                            { name: 'SQLite', value: 'sqlite' },
+                            { name: 'None / Not decided yet', value: 'none' },
+                        ],
+                    }, false);
+                    break;
+                }
+                case 'databaseClient': {
+                    if (answers.database === 'none') {
+                        answers.databaseClient = 'none';
+                    }
+                    else {
+                        answers.databaseClient = await (0, wizard_js_1.askWithGoBack)({
+                            type: 'list',
+                            name: 'databaseClient',
+                            message: 'What database client/ORM are you using?',
+                            choices: getDatabaseClientChoices(answers.backendLanguage, answers.database),
+                        }, false);
+                    }
+                    break;
+                }
+            }
+            currentIndex++;
+        }
+        catch (error) {
+            if (error instanceof wizard_js_1.GoBackError) {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    // Skip databaseClient if database is none when going back
+                    if (questionKeys[currentIndex] === 'databaseClient' && answers.database === 'none') {
+                        currentIndex--;
+                    }
+                }
+                else {
+                    throw error;
+                }
+            }
+            else {
+                throw error;
+            }
+        }
     }
-    const { backendLanguage } = await inquirer_1.default.prompt([
-        {
-            type: 'list',
-            name: 'backendLanguage',
-            message: 'What is your primary backend language?',
-            choices: [
-                { name: 'TypeScript/JavaScript (Node.js)', value: 'typescript' },
-                { name: 'Go', value: 'go' },
-                { name: 'Rust', value: 'rust' },
-                { name: 'Java/Kotlin', value: 'java' },
-                { name: 'Python', value: 'python' },
-            ],
-        },
-    ]);
-    const frameworkChoices = getFrameworkChoices(backendLanguage);
-    const { backendFramework } = await inquirer_1.default.prompt([
-        {
-            type: 'list',
-            name: 'backendFramework',
-            message: 'Which backend framework are you using?',
-            choices: frameworkChoices,
-        },
-    ]);
-    const { database } = await inquirer_1.default.prompt([
-        {
-            type: 'list',
-            name: 'database',
-            message: 'What database are you using?',
-            choices: [
-                { name: 'PostgreSQL', value: 'postgresql' },
-                { name: 'MySQL', value: 'mysql' },
-                { name: 'MongoDB', value: 'mongodb' },
-                { name: 'SQLite', value: 'sqlite' },
-                { name: 'None / Not decided yet', value: 'none' },
-            ],
-        },
-    ]);
-    let databaseClient = 'none';
-    if (database !== 'none') {
-        const clientChoices = getDatabaseClientChoices(backendLanguage, database);
-        const clientAnswer = await inquirer_1.default.prompt([
-            {
-                type: 'list',
-                name: 'databaseClient',
-                message: 'What database client/ORM are you using?',
-                choices: clientChoices,
-            },
-        ]);
-        databaseClient = clientAnswer.databaseClient;
-    }
-    return {
-        hasBackend: true,
-        backendLanguage,
-        backendFramework,
-        database,
-        databaseClient,
-    };
+    return answers;
 }
 function getFrameworkChoices(language) {
     switch (language) {
