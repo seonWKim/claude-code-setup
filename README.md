@@ -1,13 +1,15 @@
-# claude-code-setup
+# @seonwkim/claude-code-setup
 
 A CLI tool that configures Claude Code for any project by asking questions about your tech stack and generating the appropriate configuration files.
 
 ## Installation
 
 ```bash
-npm install -g claude-code-setup
-# or
-npx claude-code-setup
+# Run directly with npx (recommended)
+npx @seonwkim/claude-code-setup
+
+# Or install globally
+npm install -g @seonwkim/claude-code-setup
 ```
 
 ## Usage
@@ -15,9 +17,13 @@ npx claude-code-setup
 Run the CLI in your project directory:
 
 ```bash
+# If installed globally
 claude-code-setup
 # or
 ccs
+
+# Or run with npx
+npx @seonwkim/claude-code-setup
 ```
 
 The CLI will:
@@ -71,17 +77,17 @@ Components are selected based on your answers:
 ## Options
 
 ```bash
-claude-code-setup --directory <path>  # Specify target directory
-claude-code-setup --version           # Show version
-claude-code-setup --help              # Show help
+npx @seonwkim/claude-code-setup --directory <path>  # Specify target directory
+npx @seonwkim/claude-code-setup --version           # Show version
+npx @seonwkim/claude-code-setup --help              # Show help
 ```
 
 ## Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/affaan-m/everything-claude-code
-cd everything-claude-code/claude-code-setup
+git clone https://github.com/seonwkim/claude-code-setup.git
+cd claude-code-setup
 
 # Install dependencies
 npm install
