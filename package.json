@@ -1,11 +1,11 @@
 {
-  "name": "claude-code-setup",
+  "name": "@seonwkim/claude-code-setup",
   "version": "1.0.0",
   "description": "CLI tool to configure Claude Code for any project",
   "main": "dist/index.js",
   "bin": {
-    "claude-code-setup": "./bin/ccs.js",
-    "ccs": "./bin/ccs.js"
+    "claude-code-setup": "bin/ccs.js",
+    "ccs": "bin/ccs.js"
   },
   "scripts": {
     "build": "tsc",
