@@ -1,0 +1,273 @@
+# Claude Code Setup Documentation
+
+This document explains the Claude Code configuration generated for **<%= answers.projectName %>**.
+
+Generated on: <%= formatDate() %>
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Selected Components](#selected-components)
+- [Why These Were Selected](#why-these-were-selected)
+- [Environment Variables](#environment-variables)
+- [Quick Start](#quick-start)
+- [File Structure](#file-structure)
+- [Customization](#customization)
+
+## Overview
+
+| Setting | Value |
+|---------|-------|
+| Project Type | <%= answers.projectType %> |
+| Project Goal | <%= answers.projectGoal %> |
+| Security Level | <%= answers.securityLevel %> |
+| Team Size | <%= answers.teamSize %> |
+| Testing Approach | <%= answers.testingApproach %> |
+| Hooks Enabled | <%= answers.enableHooks ? 'Yes' : 'No' %> |
+
+## Selected Components
+
+### Agents (<%= components.agents.length %>)
+
+<% if (components.agents.length > 0) { %>
+| Agent | Reason |
+|-------|--------|
+<% components.agents.forEach(function(agent) { %>
+| <%= agent.name %> | <%= agent.reason %> |
+<% }); %>
+<% } else { %>
+No agents selected.
+<% } %>
+
+### Commands (<%= components.commands.length %>)
+
+<% if (components.commands.length > 0) { %>
+| Command | Reason |
+|---------|--------|
+<% components.commands.forEach(function(cmd) { %>
+| `<%= cmd.name %>` | <%= cmd.reason %> |
+<% }); %>
+<% } else { %>
+No commands selected.
+<% } %>
+
+### Skills (<%= components.skills.length %>)
+
+<% if (components.skills.length > 0) { %>
+| Skill | Reason |
+|-------|--------|
+<% components.skills.forEach(function(skill) { %>
+| <%= skill.name %> | <%= skill.reason %> |
+<% }); %>
+<% } else { %>
+No skills selected.
+<% } %>
+
+### Rules (<%= components.rules.length %>)
+
+<% if (components.rules.length > 0) { %>
+| Rule | Required | Reason |
+|------|----------|--------|
+<% components.rules.forEach(function(rule) { %>
+| <%= rule.name %> | <%= rule.required ? 'Yes' : 'No' %> | <%= rule.reason %> |
+<% }); %>
+<% } else { %>
+No rules selected.
+<% } %>
+
+### Hooks (<%= components.hooks.length %>)
+
+<% if (components.hooks.length > 0) { %>
+| Hook | Description | Reason |
+|------|-------------|--------|
+<% components.hooks.forEach(function(hook) { %>
+| <%= hook.name %> | <%= hook.description %> | <%= hook.reason %> |
+<% }); %>
+<% } else { %>
+No hooks enabled.
+<% } %>
+
+### MCP Servers (<%= components.mcpServers.length %>)
+
+<% if (components.mcpServers.length > 0) { %>
+| Server | Description | Reason |
+|--------|-------------|--------|
+<% components.mcpServers.forEach(function(server) { %>
+| <%= server.name %> | <%= server.config.description %> | <%= server.reason %> |
+<% }); %>
+<% } else { %>
+No MCP servers configured.
+<% } %>
+
+## Why These Were Selected
+
+### Based on Your Project Goal: <%= answers.projectGoal %>
+
+<% if (answers.projectGoal === 'production' || answers.projectGoal === 'enterprise') { %>
+Production/enterprise projects receive:
+- **Planner & Architect agents** for structured development
+- **Documentation tools** for maintainability
+- **Refactoring capabilities** for code quality
+- **Stricter rules** for consistency
+<% } else if (answers.projectGoal === 'mvp') { %>
+MVP projects focus on speed:
+- Minimal configuration overhead
+- Essential tools only
+- Relaxed rules for flexibility
+<% } else if (answers.projectGoal === 'learning') { %>
+Learning projects are configured for exploration:
+- Fewer restrictions
+- Focus on understanding
+- Helpful guidance without enforcement
+<% } %>
+
+### Based on Your Testing Approach: <%= answers.testingApproach %>
+
+<% if (answers.testingApproach === 'tdd') { %>
+TDD approach includes:
+- **TDD Guide agent** for test-first development
+- **TDD command** for workflow integration
+- **TDD Workflow skill** for best practices
+- **Testing rule** (enforced)
+<% } else if (answers.testingApproach === 'standard') { %>
+Standard testing includes:
+- Testing guidelines
+- Coverage tracking commands
+<% } %>
+
+### Based on Your Security Level: <%= answers.securityLevel %>
+
+<% if (answers.securityLevel === 'high') { %>
+High security configuration includes:
+- **Security Reviewer agent** for code audits
+- **Security rule** (enforced)
+- **Security Review skill** for workflows
+<% if (answers.hasPayments) { %>
+- Extra scrutiny for payment handling
+<% } %>
+<% if (answers.hasBlockchain) { %>
+- Blockchain security considerations
+<% } %>
+<% } else if (answers.securityLevel === 'medium') { %>
+Medium security includes standard best practices and security guidelines.
+<% } %>
+
+### Based on Your Team Size: <%= answers.teamSize %>
+
+<% if (answers.teamSize !== 'solo') { %>
+Team collaboration includes:
+- **Code Reviewer agent** for peer review assistance
+- **Git Workflow rule** for branch strategy
+<% if (answers.requireCodeReview) { %>
+- Code review enforcement
+<% } %>
+<% } else { %>
+Solo development has streamlined workflow without review overhead.
+<% } %>
+
+## Environment Variables
+
+<% const envVars = getEnvVarsNeeded(components); %>
+<% if (envVars.length > 0) { %>
+The following environment variables need to be configured:
+
+| Variable | Purpose |
+|----------|---------|
+<% envVars.forEach(function(env) { %>
+| `<%= env.split(' - ')[0] %>` | <%= env.split(' - ')[1] || 'Required' %> |
+<% }); %>
+
+Edit `.claude.json` and replace the placeholder values with your actual API keys.
+<% } else { %>
+No environment variables required for the selected configuration.
+<% } %>
+
+## Quick Start
+
+1. **Review this documentation** to understand what was configured
+
+2. **Configure API keys** (if needed):
+   ```bash
+   # Edit .claude.json and add your API keys
+   ```
+
+3. **Start using Claude Code**:
+<% if (components.commands.length > 0) { %>
+   ```bash
+   # Available commands:
+<% components.commands.forEach(function(cmd) { %>
+   # <%= cmd.name %> - <%= cmd.reason %>
+<% }); %>
+   ```
+<% } %>
+
+4. **Review the agents** in `.claude/agents/` to understand available AI assistance
+
+## File Structure
+
+```
+<%= answers.projectName %>/
+├── .claude/
+<% if (components.agents.length > 0) { %>
+│   ├── agents/           # AI agent configurations
+<% } %>
+<% if (components.commands.length > 0) { %>
+│   ├── commands/         # Custom slash commands
+<% } %>
+<% if (components.skills.length > 0) { %>
+│   ├── skills/           # Skill configurations
+<% } %>
+<% if (components.rules.length > 0) { %>
+│   ├── rules/            # Rule definitions
+<% } %>
+<% if (answers.enableHooks) { %>
+│   └── settings.local.json  # Hook configurations
+<% } %>
+├── .claude.json          # MCP server configurations
+├── CLAUDE.md             # Project-specific AI instructions
+└── CLAUDE_SETUP.md       # This documentation file
+```
+
+## Customization
+
+### Adding More Agents
+
+Copy additional agent files from the source repository to `.claude/agents/`:
+- `planner.md` - Structured planning
+- `architect.md` - Architecture decisions
+- `tdd-guide.md` - Test-driven development
+- `code-reviewer.md` - Code review assistance
+- `security-reviewer.md` - Security audits
+- `build-error-resolver.md` - Build issue resolution
+- `e2e-runner.md` - End-to-end testing
+- `doc-updater.md` - Documentation maintenance
+- `refactor-cleaner.md` - Code cleanup
+
+### Adding More MCP Servers
+
+Edit `.claude.json` to add additional MCP servers. Available options:
+- `github` - GitHub operations
+- `supabase` - Supabase database
+- `vercel` - Vercel deployments
+- `railway` - Railway deployments
+- `cloudflare-*` - Cloudflare services
+- `context7` - Live documentation
+- `memory` - Persistent memory
+- `sequential-thinking` - Enhanced reasoning
+
+### Modifying Hooks
+
+Edit `.claude/settings.local.json` to customize hooks:
+- `PreToolUse` - Runs before tool execution
+- `PostToolUse` - Runs after tool execution
+- `Stop` - Runs when session ends
+
+### Disabling Components
+
+- Remove files from `.claude/` directories
+- Remove MCP servers from `.claude.json`
+- Set `"hooks": {}` in settings.local.json to disable hooks
+
+---
+
+*Generated by [claude-code-setup](https://github.com/affaan-m/everything-claude-code)*
